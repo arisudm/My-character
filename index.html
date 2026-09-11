@@ -143,11 +143,11 @@
     transform:translateY(-4px) scale(1.012);
     box-shadow:var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--card-accent, var(--accent)) 35%, transparent), 0 18px 30px -18px color-mix(in srgb, var(--card-accent, var(--accent)) 60%, transparent);
   }
-  .card-media{position:relative; aspect-ratio:4/5; background:var(--surface-2);}
-  .card-media img{width:100%; height:100%; object-fit:cover; display:block;}
+  .card-media{position:relative; aspect-ratio:4/5; background:var(--surface-2); overflow:hidden;}
+  .card-media img{width:100%; height:100%; object-fit:contain; display:block; position:relative; z-index:1;}
   .card-media::after{
     content:''; position:absolute; inset:0; pointer-events:none;
-    background:linear-gradient(155deg, rgba(255,255,255,.20) 0%, rgba(255,255,255,0) 32%);
+    background:linear-gradient(155deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,0) 32%);
   }
   .card-mono{
     width:100%; height:100%; display:flex; align-items:center; justify-content:center;
@@ -261,8 +261,8 @@
   }
   .detail-topbar-actions{display:flex; gap:8px; margin-left:auto;}
   #detail-delete-confirm{flex:1 1 100%;}
-  .detail-layout{display:grid; grid-template-columns:minmax(300px,440px) 1fr;}
-  .detail-left{padding:30px 36px 90px; max-width:640px;}
+  .detail-layout{display:grid; grid-template-columns:minmax(0,1fr) minmax(300px,380px);}
+  .detail-left{padding:30px 36px 90px; max-width:760px; min-width:0;}
   .detail-right{
     position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center;
     padding:36px 24px; min-height:calc(100vh - 61px);
@@ -270,8 +270,8 @@
   }
 
   .sheet-tabs{
-    display:flex; gap:5px; margin:20px 0 4px; border-bottom:1px solid var(--line);
-    overflow-x:auto; scrollbar-width:none; padding-bottom:8px;
+    display:flex; flex-wrap:wrap; gap:5px; margin:20px 0 4px; border-bottom:1px solid var(--line);
+    padding-bottom:8px;
   }
   .sheet-tabs::-webkit-scrollbar{display:none;}
   .tab-btn{
@@ -479,22 +479,22 @@
 
   .stand-stage{
     width:100%; max-width:340px; aspect-ratio:3/4; border-radius:20px; overflow:hidden;
-    background:rgba(255,255,255,.1); display:flex; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.04); display:flex; align-items:center; justify-content:center;
     box-shadow:var(--shadow-lg); position:relative; border:1px solid rgba(255,255,255,.16);
   }
   .stand-stage::before{
     content:''; position:absolute; inset:0; z-index:1; pointer-events:none; border-radius:inherit;
-    background:linear-gradient(160deg, rgba(255,255,255,.18), transparent 45%);
+    background:linear-gradient(160deg, rgba(255,255,255,.10), transparent 45%);
   }
   .stand-stage img{width:100%; height:100%; object-fit:contain; position:relative; z-index:0;}
   .stage-empty{color:rgba(255,255,255,.85); text-align:center; padding:20px; font-size:.88rem; line-height:1.6;}
   .stand-thumbs{display:flex; gap:9px; margin-top:16px; flex-wrap:wrap; justify-content:center; max-width:380px;}
   .stand-thumb{
     width:58px; height:74px; border-radius:10px; overflow:hidden; border:2px solid rgba(255,255,255,.25);
-    cursor:pointer; background:rgba(255,255,255,.12); position:relative; flex:none; padding:0;
+    cursor:pointer; background:rgba(255,255,255,.08); position:relative; flex:none; padding:0;
   }
   .stand-thumb.active{border-color:#fff;}
-  .stand-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  .stand-thumb img{width:100%; height:100%; object-fit:contain; display:block; position:relative; z-index:1;}
   .stand-thumb-remove{
     position:absolute; top:2px; right:2px; width:17px; height:17px; border-radius:50%;
     background:rgba(0,0,0,.65); color:#fff; border:none; font-size:10px; line-height:1; cursor:pointer;
@@ -940,15 +940,16 @@
 
   function cardHtml(c){
     var base = charColor(c);
+    var grad = charGradient(c);
     var cover = c.images && c.images[0] ? c.images[0].url : null;
     var media = cover
       ? '<img src="' + cover + '" alt="' + escapeHtml(c.name) + ' 초상화" loading="lazy">'
-      : '<div class="card-mono" style="background:' + charGradient(c) + '">' + escapeHtml((c.name||'?').slice(0,1)) + '</div>';
+      : '<div class="card-mono">' + escapeHtml((c.name||'?').slice(0,1)) + '</div>';
     var tags = (c.tags||[]).slice(0,3).map(function(t){ return '<span class="chip" style="' + chipStyle(base) + '">' + escapeHtml(t) + '</span>'; }).join('');
     var sessionBadge = (c.sessions && c.sessions.length) ? '<span class="badge-sessions">' + c.sessions.length + '개 세션</span>' : '';
     return '' +
       '<article class="card" data-id="' + c.id + '" tabindex="0" style="--card-accent:' + base + ';">' +
-        '<div class="card-media">' + media + (c.isExample ? '<span class="badge-example">예시</span>' : '') + sessionBadge + '</div>' +
+        '<div class="card-media" style="background:' + grad + '">' + media + (c.isExample ? '<span class="badge-example">예시</span>' : '') + sessionBadge + '</div>' +
         '<div class="card-body">' +
           '<div class="card-top">' +
             '<h3 class="card-name"><span class="card-dot" style="background:' + base + ';"></span>' + escapeHtml(c.name) + '</h3>' +
@@ -1747,8 +1748,9 @@
       if (activeImageIdx >= char.images.length) activeImageIdx = 0;
       stage.innerHTML = '<img src="' + char.images[activeImageIdx].url + '" alt="' + escapeHtml(char.name) + ' 스탠딩 이미지">';
     }
+    var thumbBg = charGradient(previewColorSource(char));
     var thumbHtml = char.images.map(function(img, idx){
-      return '<button type="button" class="stand-thumb' + (idx===activeImageIdx?' active':'') + '" data-idx="'+idx+'" aria-label="스탠딩 이미지 '+(idx+1)+' 보기">' +
+      return '<button type="button" class="stand-thumb' + (idx===activeImageIdx?' active':'') + '" data-idx="'+idx+'" aria-label="스탠딩 이미지 '+(idx+1)+' 보기" style="background:'+thumbBg+';">' +
         '<img src="'+img.url+'" alt="">' +
         '<span class="stand-thumb-remove" data-idx="'+idx+'" role="button" aria-label="이미지 삭제">×</span>' +
       '</button>';
@@ -1917,6 +1919,10 @@
   /* ---------------- Image resize ---------------- */
 
   function resizeImage(file, maxW, quality){
+    /* PNG/GIF/WebP can carry transparency — re-encoding those as JPEG would
+       flatten it to a solid color, so only true photo formats get the lossy
+       JPEG treatment. Everything else keeps its alpha channel as PNG. */
+    var preserveAlpha = /^image\/(png|gif|webp|svg\+xml)/i.test(file.type||'');
     return new Promise(function(resolve, reject){
       if (!file.type || file.type.indexOf('image/') !== 0){ reject(new Error('not-an-image')); return; }
       var reader = new FileReader();
@@ -1932,7 +1938,7 @@
           canvas.width = w; canvas.height = h;
           var ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', quality));
+          resolve(preserveAlpha ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', quality));
         };
         img.src = reader.result;
       };
