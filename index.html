@@ -144,7 +144,7 @@
     box-shadow:var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--card-accent, var(--accent)) 35%, transparent), 0 18px 30px -18px color-mix(in srgb, var(--card-accent, var(--accent)) 60%, transparent);
   }
   .card-media{position:relative; aspect-ratio:4/5; background:var(--surface-2); overflow:hidden;}
-  .card-media img{width:100%; height:100%; object-fit:cover; display:block; position:relative; z-index:1;}
+  .card-media img{width:100%; height:100%; object-fit:cover; object-position:50% 12%; display:block; position:relative; z-index:1;}
   .card-media::after{
     content:''; position:absolute; inset:0; pointer-events:none;
     background:linear-gradient(155deg, rgba(255,255,255,.14) 0%, rgba(255,255,255,0) 32%);
@@ -262,13 +262,13 @@
   .detail-topbar-actions{display:flex; gap:8px; margin-left:auto;}
   #detail-delete-confirm{flex:1 1 100%;}
   .detail-layout{
-    display:grid; grid-template-columns:minmax(360px,1.15fr) minmax(320px,.85fr);
+    display:grid; grid-template-columns:minmax(360px,1.15fr) minmax(320px,.85fr); align-items:start;
     max-width:1320px; margin:0 auto; width:100%;
   }
   .detail-left{padding:30px 36px 90px; min-width:0;}
   .detail-right{
-    position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    padding:36px 24px; min-height:calc(100vh - 61px);
+    position:sticky; top:61px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:36px 24px; height:calc(100vh - 61px);
     background:var(--surface-2);
   }
 
@@ -479,6 +479,13 @@
     width:22px; height:22px; flex:none; border-radius:50%;
   }
   .row-remove:hover{background:var(--danger-soft); color:var(--danger);}
+  .session-actions{display:flex; gap:2px; flex:none;}
+  .row-edit{
+    background:none; border:none; color:var(--muted); cursor:pointer; font-size:.82rem; line-height:1;
+    width:22px; height:22px; flex:none; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .row-edit:hover{background:var(--surface-2); color:var(--ink);}
 
   .stand-stage{
     width:100%; max-width:340px; aspect-ratio:3/4; border-radius:20px; overflow:hidden;
@@ -497,7 +504,7 @@
     cursor:pointer; background:rgba(255,255,255,.08); position:relative; flex:none; padding:0;
   }
   .stand-thumb.active{border-color:#fff;}
-  .stand-thumb img{width:100%; height:100%; object-fit:cover; display:block; position:relative; z-index:1;}
+  .stand-thumb img{width:100%; height:100%; object-fit:cover; object-position:50% 12%; display:block; position:relative; z-index:1;}
   .stand-thumb-remove{
     position:absolute; top:2px; right:2px; width:17px; height:17px; border-radius:50%; z-index:2;
     background:rgba(0,0,0,.65); color:#fff; border:none; font-size:10px; line-height:1; cursor:pointer;
@@ -511,7 +518,7 @@
 
   @media (max-width:900px){
     .detail-layout{grid-template-columns:1fr;}
-    .detail-right{order:-1; min-height:auto; padding:28px 18px 34px;}
+    .detail-right{order:-1; position:static; height:auto; padding:28px 18px 34px;}
     .detail-left{padding:24px 18px 70px;}
   }
   @media (max-width:640px){
@@ -839,6 +846,7 @@
   var draft = null;
   var activeImageIdx = 0;
   var sessionFormOpen = false;
+  var sessionEditingId = null;
   var currentTab = 'profile';
   var relationsViewMode = 'list';
   var selectedRelationIdx = null;
@@ -1068,6 +1076,7 @@
     currentCharId = id;
     activeImageIdx = 0;
     sessionFormOpen = false;
+    sessionEditingId = null;
     currentTab = 'profile';
     relationsViewMode = 'list';
     selectedRelationIdx = null;
@@ -1689,12 +1698,23 @@
     $('#d-bio-input').value = editMode ? draft.bio : (char.bio || '');
   }
 
+  function sessionEditFormHtml(s){
+    return '<div class="session-form session-edit-form" data-id="'+s.id+'">' +
+      '<div class="session-form-row"><input type="text" class="se-title" value="'+escapeHtml(s.title)+'" placeholder="세션 / 시나리오 제목"><input type="date" class="se-date" value="'+escapeHtml(s.date||'')+'"></div>' +
+      '<input type="text" class="se-note" value="'+escapeHtml(s.note||'')+'" placeholder="메모 또는 링크 (선택)">' +
+      '<div class="form-actions"><span></span><div class="right"><button type="button" class="btn-text se-cancel">취소</button><button type="button" class="btn btn-primary btn-sm se-save" data-id="'+s.id+'">저장</button></div></div>' +
+    '</div>';
+  }
+
   function renderDetailSessions(){
     var char = getOpenChar();
     $('#d-session-count').textContent = char.sessions.length ? char.sessions.length + '개' : '';
     var list = $('#d-sessions');
     var sorted = char.sessions.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
     var rowsHtml = sorted.length ? sorted.map(function(s){
+      if (s.id === sessionEditingId){
+        return sessionEditFormHtml(s);
+      }
       var noteHtml = '';
       if (s.note){
         noteHtml = looksLikeUrl(s.note)
@@ -1706,7 +1726,10 @@
           '<div class="session-top"><span class="session-title">'+escapeHtml(s.title)+'</span>' + (s.date ? '<span class="session-date">'+escapeHtml(s.date)+'</span>' : '') + '</div>' +
           noteHtml +
         '</div>' +
-        '<button type="button" class="row-remove session-remove" data-id="'+s.id+'" aria-label="세션 삭제">×</button>' +
+        '<div class="session-actions">' +
+          '<button type="button" class="row-edit session-edit-btn" data-id="'+s.id+'" aria-label="세션 수정">✎</button>' +
+          '<button type="button" class="row-remove session-remove" data-id="'+s.id+'" aria-label="세션 삭제">×</button>' +
+        '</div>' +
       '</div>';
     }).join('') : '<p class="muted small">아직 기록된 세션이 없어요.</p>';
 
@@ -1739,6 +1762,32 @@
         commitChange(function(){ char.sessions = char.sessions.filter(function(x){ return x.id !== id; }); }, '세션을 삭제했어요').then(function(){ renderDetailSessions(); });
       });
     });
+    $$('.session-edit-btn', list).forEach(function(btn){
+      btn.addEventListener('click', function(){
+        sessionFormOpen = false;
+        sessionEditingId = btn.getAttribute('data-id');
+        renderDetailSessions();
+      });
+    });
+    var editForm = $('.session-edit-form', list);
+    if (editForm){
+      var editId = editForm.getAttribute('data-id');
+      $('.se-cancel', editForm).addEventListener('click', function(){ sessionEditingId = null; renderDetailSessions(); });
+      $('.se-save', editForm).addEventListener('click', function(){
+        var title = editForm.querySelector('.se-title').value.trim();
+        if (!title){ toast('세션 제목을 입력해주세요.'); return; }
+        var date = editForm.querySelector('.se-date').value || '';
+        var note = editForm.querySelector('.se-note').value.trim();
+        commitChange(function(){
+          var s = char.sessions.find(function(x){ return x.id === editId; });
+          if (s){ s.title = title; s.date = date; s.note = note; }
+        }, '세션을 수정했어요').then(function(ok){
+          if (ok){ sessionEditingId = null; }
+          renderDetailSessions();
+        });
+      });
+      editForm.querySelector('.se-title').focus();
+    }
   }
 
   function renderDetailImages(){
