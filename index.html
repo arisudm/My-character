@@ -162,6 +162,26 @@
     position:absolute; bottom:8px; right:8px; background:rgba(0,0,0,.55); color:#fff;
     font-size:.68rem; padding:3px 8px; border-radius:999px;
   }
+  .card-nameplate{
+    position:absolute; z-index:2; top:10px; right:10px; max-width:calc(100% - 20px);
+    background:rgba(255,255,255,.9); backdrop-filter:blur(3px);
+    border-radius:9px; padding:3px 9px 4px; box-shadow:0 2px 6px rgba(0,0,0,.18);
+  }
+  .card-nameplate .np-label{
+    display:block; font-size:.5rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--card-accent, #888); line-height:1;
+  }
+  .card-nameplate .np-name{
+    display:block; font-family:var(--font-display); font-weight:700; font-size:.78rem; color:#18181c;
+    line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;
+  }
+  .card-minicut{
+    position:absolute; z-index:2; bottom:8px; left:8px;
+    width:42px; height:42px; border-radius:50%; overflow:hidden;
+    border:2.5px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,.3);
+    background:var(--surface-2);
+  }
+  .card-minicut img{width:100%; height:100%; object-fit:cover; object-position:50% 25%; display:block;}
   .card-body{padding:14px 16px 16px; display:flex; flex-direction:column; gap:8px; flex:1;}
   .card-top{display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
   .card-name{font-size:1.08rem; font-weight:600;}
@@ -176,6 +196,11 @@
   .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:auto;}
   .chip{
     font-size:.72rem; padding:3px 9px; border-radius:999px; font-weight:600;
+  }
+  .card-palette{display:flex; gap:4px;}
+  .card-palette span{
+    width:12px; height:12px; border-radius:4px; display:block; flex:none;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.1);
   }
 
   .empty{
@@ -498,6 +523,26 @@
   }
   .stand-stage img{width:100%; height:100%; object-fit:contain; position:relative; z-index:0;}
   .stage-empty{color:rgba(255,255,255,.85); text-align:center; padding:20px; font-size:.88rem; line-height:1.6;}
+  .stage-nameplate{
+    position:absolute; z-index:2; top:14px; left:14px; max-width:calc(100% - 80px);
+    background:rgba(255,255,255,.92); backdrop-filter:blur(4px);
+    border-radius:12px; padding:6px 14px 7px; box-shadow:0 3px 10px rgba(0,0,0,.22);
+  }
+  .stage-nameplate .np-label{
+    display:block; font-size:.58rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--char-accent, #888); line-height:1;
+  }
+  .stage-nameplate .np-name{
+    display:block; font-family:var(--font-display); font-weight:800; font-size:1.08rem; color:#18181c;
+    line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .stage-minicut{
+    position:absolute; z-index:2; bottom:16px; right:16px;
+    width:72px; height:72px; border-radius:50%; overflow:hidden;
+    border:3px solid #fff; box-shadow:0 4px 14px rgba(0,0,0,.35);
+    background:var(--surface-2);
+  }
+  .stage-minicut img{width:100%; height:100%; object-fit:cover; object-position:50% 25%; display:block;}
   .stand-thumbs{display:flex; gap:9px; margin-top:16px; flex-wrap:wrap; justify-content:center; max-width:380px;}
   .stand-thumb{
     width:58px; height:74px; border-radius:10px; overflow:hidden; border:2px solid rgba(255,255,255,.25);
@@ -515,6 +560,11 @@
     border:2px dashed rgba(255,255,255,.5); cursor:pointer;
   }
   .stand-hint{color:rgba(255,255,255,.7); font-size:.76rem; margin-top:10px; text-align:center; max-width:300px;}
+  .stand-palette{display:flex; gap:7px; margin-top:16px; justify-content:center;}
+  .stand-palette span{
+    width:23px; height:23px; border-radius:7px; display:block; cursor:default;
+    box-shadow:0 1px 4px rgba(0,0,0,.3), inset 0 0 0 1px rgba(255,255,255,.35);
+  }
 
   @media (max-width:900px){
     .detail-layout{grid-template-columns:1fr;}
@@ -768,6 +818,7 @@
       <div class="detail-right" id="d-right">
         <div class="stand-stage" id="d-stage"></div>
         <div class="stand-thumbs" id="d-thumbs"></div>
+        <div class="stand-palette" id="d-palette" hidden></div>
         <p class="stand-hint">첫 번째 이미지가 목록의 대표 이미지로 쓰여요. 최대 8장까지 올릴 수 있어요.</p>
       </div>
     </div>
@@ -912,6 +963,38 @@
     return hslToHex(hashHue(tag), 55, 60);
   }
 
+  /* Small color-math helpers for the decorative palette-chip strip: blend a
+     base hex color toward white/black by a given amount to get real hex
+     tints/shades (rather than relying on CSS color-mix, so the same values
+     can be reused anywhere plain strings are needed). */
+  function hexToRgb(hex){
+    hex = String(hex||'').replace('#','');
+    return [parseInt(hex.substr(0,2),16)||0, parseInt(hex.substr(2,2),16)||0, parseInt(hex.substr(4,2),16)||0];
+  }
+  function rgbToHex(r,g,b){
+    function h(v){ v = Math.max(0, Math.min(255, Math.round(v))); return ('0'+v.toString(16)).slice(-2); }
+    return '#' + h(r) + h(g) + h(b);
+  }
+  function mixHex(base, withHex, amount){
+    var a = hexToRgb(base), b = hexToRgb(withHex);
+    return rgbToHex(a[0]+(b[0]-a[0])*amount, a[1]+(b[1]-a[1])*amount, a[2]+(b[2]-a[2])*amount);
+  }
+  /* A small 4-swatch palette derived from the character's own accent color:
+     a light tint, the base color itself, and two progressively darker shades. */
+  function paletteSwatches(base){
+    return [
+      mixHex(base, '#ffffff', 0.5),
+      base,
+      mixHex(base, '#000000', 0.35),
+      mixHex(base, '#000000', 0.65)
+    ];
+  }
+  function paletteChipsHtml(base){
+    return paletteSwatches(base).map(function(hex){
+      return '<span style="background:' + hex + ';" title="' + hex + '"></span>';
+    }).join('');
+  }
+
   function escapeHtml(str){
     return String(str == null ? '' : str).replace(/[&<>"']/g, function(c){
       return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
@@ -958,9 +1041,16 @@
       : '<div class="card-mono">' + escapeHtml((c.name||'?').slice(0,1)) + '</div>';
     var tags = (c.tags||[]).slice(0,3).map(function(t){ return '<span class="chip" style="' + chipStyle(base) + '">' + escapeHtml(t) + '</span>'; }).join('');
     var sessionBadge = (c.sessions && c.sessions.length) ? '<span class="badge-sessions">' + c.sessions.length + '개 세션</span>' : '';
+    /* Decorative touches (nameplate tag, mini profile cut, color-palette chips)
+       only show once there's real art to decorate — a plain monogram card
+       stays simple. */
+    var nameplateHtml = cover ? '<div class="card-nameplate"><span class="np-label">name</span><span class="np-name">' + escapeHtml(c.name) + '</span></div>' : '';
+    var minicutSrc = cover && c.images[1] ? c.images[1].url : null;
+    var minicutHtml = minicutSrc ? '<div class="card-minicut"><img src="' + minicutSrc + '" alt=""></div>' : '';
+    var paletteHtml = cover ? '<div class="card-palette">' + paletteChipsHtml(base) + '</div>' : '';
     return '' +
       '<article class="card" data-id="' + c.id + '" tabindex="0" style="--card-accent:' + base + ';">' +
-        '<div class="card-media" style="background:' + grad + '">' + media + (c.isExample ? '<span class="badge-example">예시</span>' : '') + sessionBadge + '</div>' +
+        '<div class="card-media" style="background:' + grad + '">' + media + nameplateHtml + minicutHtml + (c.isExample ? '<span class="badge-example">예시</span>' : '') + sessionBadge + '</div>' +
         '<div class="card-body">' +
           '<div class="card-top">' +
             '<h3 class="card-name"><span class="card-dot" style="background:' + base + ';"></span>' + escapeHtml(c.name) + '</h3>' +
@@ -968,6 +1058,7 @@
           '</div>' +
           (c.tagline ? '<p class="card-tagline">' + escapeHtml(c.tagline) + '</p>' : '') +
           (tags ? '<div class="chips">' + tags + '</div>' : '') +
+          paletteHtml +
         '</div>' +
       '</article>';
   }
@@ -1794,11 +1885,19 @@
     var char = getOpenChar();
     var stage = $('#d-stage');
     var thumbs = $('#d-thumbs');
+    var paletteBox = $('#d-palette');
+    var base = charColor(previewColorSource(char));
     if (!char.images.length){
       stage.innerHTML = '<div class="stage-empty">아직 스탠딩 이미지가<br>없어요<br><br>아래 + 로 추가해보세요</div>';
+      paletteBox.hidden = true;
     } else {
       if (activeImageIdx >= char.images.length) activeImageIdx = 0;
-      stage.innerHTML = '<img src="' + char.images[activeImageIdx].url + '" alt="' + escapeHtml(char.name) + ' 스탠딩 이미지">';
+      var nameplateHtml = '<div class="stage-nameplate"><span class="np-label">name</span><span class="np-name">' + escapeHtml(char.name || '') + '</span></div>';
+      var minicutSrc = char.images[1] ? char.images[1].url : null;
+      var minicutHtml = minicutSrc ? '<div class="stage-minicut"><img src="' + minicutSrc + '" alt=""></div>' : '';
+      stage.innerHTML = '<img src="' + char.images[activeImageIdx].url + '" alt="' + escapeHtml(char.name) + ' 스탠딩 이미지">' + nameplateHtml + minicutHtml;
+      paletteBox.hidden = false;
+      paletteBox.innerHTML = paletteChipsHtml(base);
     }
     var thumbBg = charGradient(previewColorSource(char));
     var thumbHtml = char.images.map(function(img, idx){
